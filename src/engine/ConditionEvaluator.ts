@@ -47,7 +47,7 @@ export class ConditionEvaluator {
           field,
           operator,
           expectedValue: value,
-          actualValue: null,
+          actualValue: undefined,
           matched: negate ? true : false // If negate, undefined matches (not equals)
         };
       }
@@ -131,7 +131,7 @@ export class ConditionEvaluator {
         field,
         operator,
         expectedValue: value,
-        actualValue: null,
+        actualValue: undefined,
         matched: false,
         error: error instanceof Error ? error.message : 'Evaluation error'
       };

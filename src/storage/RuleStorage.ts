@@ -10,7 +10,8 @@ import {
   RuleExecution,
   ModerationStats,
   TriggerType,
-  AnalyticsData
+  AnalyticsData,
+  ActionType
 } from '../types';
 
 export class RuleStorage {
@@ -190,7 +191,7 @@ export class RuleStorage {
       totalRules: 0,
       activeRules: 0,
       totalExecutions: 0,
-      actionsTaken: {},
+      actionsTaken: {} as Record<ActionType, number>,
       timeSavedMinutes: 0,
       lastUpdated: Date.now()
     };

@@ -138,8 +138,8 @@ export interface ConditionResult {
   conditionId: string;
   field: string;
   operator: ConditionOperator;
-  expectedValue: string | number | boolean | string[];
-  actualValue: string | number | boolean | string[];
+  expectedValue: string | number | boolean | string[] | undefined;
+  actualValue: string | number | boolean | string[] | undefined;
   matched: boolean;
   error?: string;
 }

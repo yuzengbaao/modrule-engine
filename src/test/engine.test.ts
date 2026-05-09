@@ -239,7 +239,9 @@ async function testActionExecutor() {
 // Test 4: Template System (skip if import fails)
 async function testTemplates() {
   try {
-    const { RULE_TEMPLATES, templateToRule } = await import('../templates/RuleTemplates');
+    const module = await import('../templates/RuleTemplates.js');
+    const RULE_TEMPLATES = module.RULE_TEMPLATES;
+    const templateToRule = module.templateToRule;
     console.assert(RULE_TEMPLATES.length > 0, 'Should have templates');
 
     const spamTemplate = RULE_TEMPLATES.find(t => t.id === 'spam-detection');
