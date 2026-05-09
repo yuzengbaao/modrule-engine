@@ -1,0 +1,39 @@
+name: modrule-engine
+version: 1.0.0
+permissions:
+  - posts
+  - comments
+  - users
+  - flairs
+  - modmail
+  - wiki
+  - settings
+
+# Devvit app configuration
+# This app provides a visual rule engine for Reddit moderation
+# Requires moderator permissions to function
+
+runtime:
+  type: nodejs
+  entrypoint: dist/main.js
+
+# UI Components
+# Custom post component for rule builder
+# Menu item for analytics dashboard
+
+# Storage
+# Uses Reddit's key-value store for:
+# - Rule definitions
+# - Execution logs
+# - Analytics data
+
+# Triggers
+# - Post creation
+# - Comment creation
+# - User join
+# - Report submission
+# - Mod action
+
+# Background jobs
+# - Rule evaluation engine
+# - Analytics aggregation

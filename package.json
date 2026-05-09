@@ -1,0 +1,29 @@
+{
+  "name": "modrule-engine",
+  "version": "1.0.0",
+  "description": "Visual IF-THEN rule engine for Reddit moderation",
+  "author": "yuzengbao",
+  "license": "MIT",
+  "devvit": {
+    "appName": "ModRule Engine",
+    "appDescription": "Automated moderation rules without coding",
+    "appIcon": "icon.png",
+    "categories": [
+      "moderation"
+    ],
+    "price": "free"
+  },
+  "dependencies": {
+    "@devvit/protos": "0.11.0",
+    "@devvit/public-api": "0.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.40",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "devvit playtest",
+    "upload": "devvit upload"
+  }
+}
