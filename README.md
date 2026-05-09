@@ -29,9 +29,18 @@ A visual IF-THEN rule engine for Reddit moderators that allows creating automate
 ```
 ModRule Engine
 ├── Rule Builder (Custom Post Component)
-│   ├── Trigger Selector
-│   ├── Condition Builder
-│   └── Action Configurator
+│   ├── Visual Rule Builder (4-step wizard)
+│   │   ├── Trigger Selector
+│   │   ├── Condition Builder (modular rows)
+│   │   ├── Action Builder (configurable cards)
+│   │   └── Rule Preview (natural language)
+│   ├── Rule List & Management
+│   └── Template Gallery
+├── UI Components (`components/`)
+│   ├── VisualRuleBuilder.tsx
+│   ├── ConditionBuilder.tsx
+│   ├── ActionBuilder.tsx
+│   └── RulePreview.tsx
 ├── Rule Engine (Background)
 │   ├── Trigger Listener
 │   ├── Condition Evaluator
@@ -99,8 +108,12 @@ ModRule Engine
 - [x] Action executor implemented
 - [x] Storage layer implemented
 - [x] 8 rule templates created
-- [x] Unit tests passing (4/4 test suites)
-- [ ] UI components (in progress - Custom Post Type basics done)
+- [x] Unit tests passing (8/8 test suites)
+- [x] UI components - Visual Rule Builder with 4-step wizard
+- [x] UI components - Condition Builder (drag-and-drop style)
+- [x] UI components - Action Builder (configurable actions)
+- [x] UI components - Rule Preview (natural language generation)
+- [x] `components/` directory with modular UI architecture
 - [ ] End-to-end testing (blocked - needs Devvit platform)
 - [ ] Submitted to Devpost (deadline: May 27)
 
@@ -127,13 +140,23 @@ devvit upload
 
 ## Testing
 
-All core components have unit tests:
+All core components and UI logic have unit tests:
 - `ConditionEvaluator` - Tests all 12 operators (equals, contains, regex, >, <, etc.)
 - `RuleEngine` - Tests rule creation, evaluation, and execution
 - `ActionExecutor` - Tests moderation actions (remove, ban, flair, etc.)
 - `RuleTemplates` - Tests template system and rule generation
+- `RulePreview` - Tests natural language description generation and validation
+- `ConditionBuilder` - Tests form data extraction, default creation, value parsing
+- `ActionBuilder` - Tests form data extraction, config parsing, default creation
+- `RuleStorage` - Tests CRUD operations and stats
 
-Run tests: `npx ts-node --transpile-only src/test/engine.test.ts`
+Run tests: `npm test` (uses `tsx` for JSX support in component files)
+
+### Test Architecture
+
+Core engine tests run via `tsx` (handles `.tsx` component files with JSX).
+UI component JSX is conceptually correct for Devvit's build pipeline but requires
+Devvit's special compiler for full compilation.
 
 ## Architecture Details
 

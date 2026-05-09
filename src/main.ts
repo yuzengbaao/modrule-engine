@@ -10,6 +10,8 @@ import { Devvit } from '@devvit/public-api';
 import { RuleEngine } from './engine/RuleEngine';
 import { RuleStorage } from './storage/RuleStorage';
 import { TriggerListener } from './engine/TriggerListener';
+import { RULE_TEMPLATES, templateToRule } from './templates/RuleTemplates';
+import { createVisualRuleBuilderForm, createRuleBuilderForm } from './components';
 
 // Initialize storage
 const storage = new RuleStorage();
@@ -30,7 +32,7 @@ Devvit.addMenuItem({
   label: 'ModRule Engine - Rule Builder',
   onPress: async (event, context) => {
     const { ui } = context;
-    ui.showForm(await createRuleBuilderForm(context));
+    ui.showForm(await createRuleBuilderForm(context, storage));
   }
 });
 
@@ -133,10 +135,10 @@ Devvit.addCustomPostType({
         
         {/* Quick Actions */}
         <hstack gap="small">
-          <button onPress={() => ui.showForm(createNewRuleForm(context))}>
+          <button onPress={() => ui.showForm(createVisualRuleBuilderForm(context, engine, storage, 'trigger'))}>
             Create New Rule
           </button>
-          <button onPress={() => ui.showForm(createRuleListForm(context))}>
+          <button onPress={() => ui.showForm(createRuleBuilderForm(context, storage))}>
             Manage Rules
           </button>
         </hstack>
@@ -164,96 +166,6 @@ Devvit.addCustomPostType({
   }
 });
 
-// Form: Rule Builder
-async function createRuleBuilderForm(context: Devvit.Context) {
-  const rules = await storage.getAllRules(context.reddit.getCurrentSubredditName());
-  
-  return (
-    <form>
-      <vstack gap="medium" padding="medium">
-        <text size="large" weight="bold">Rule Builder</text>
-        
-        {rules.length === 0 ? (
-          <text color="secondary">No rules yet. Create your first moderation rule!</text>
-        ) : (
-          rules.map(rule => (
-            <hstack key={rule.id} gap="small" alignment="center middle">
-              <text>{rule.name}</text>
-              <spacer />
-              <text size="small" color={rule.enabled ? 'success' : 'neutral'}>
-                {rule.enabled ? 'Active' : 'Inactive'}
-              </text>
-              <button size="small" onPress={() => ui.showForm(createEditRuleForm(context, rule.id))}>
-                Edit
-              </button>
-              <button size="small" appearance="destructive" onPress={() => deleteRule(context, rule.id)}>
-                Delete
-              </button>
-            </hstack>
-          ))
-        )}
-        
-        <button onPress={() => ui.showForm(createNewRuleForm(context))}>
-          + Create New Rule
-        </button>
-      </vstack>
-    </form>
-  );
-}
-
-// Form: New Rule
-function createNewRuleForm(context: Devvit.Context) {
-  return (
-    <form onSubmit={async (data) => {
-      const rule = await engine.createRule(context, data);
-      await storage.saveRule(context.reddit.getCurrentSubredditName(), rule);
-      context.ui.showToast('Rule created successfully!');
-    }}>
-      <vstack gap="medium" padding="medium">
-        <text size="large" weight="bold">Create New Rule</text>
-        
-        <text>Name</text>
-        <textField name="name" placeholder="e.g., Spam Detection" required />
-        
-        <text>Description</text>
-        <textArea name="description" placeholder="What does this rule do?" />
-        
-        <text>Trigger</text>
-        <select name="trigger" required>
-          <option value="post_created">Post Created</option>
-          <option value="comment_created">Comment Created</option>
-          <option value="user_joined">User Joined</option>
-          <option value="report_submitted">Report Submitted</option>
-          <option value="post_edited">Post Edited</option>
-          <option value="comment_edited">Comment Edited</option>
-          <option value="modmail_received">Modmail Received</option>
-        </select>
-        
-        <text>Conditions (IF)</text>
-        <textArea 
-          name="conditions" 
-          placeholder="e.g., post.title contains 'spam' AND user.karma < 10"
-        />
-        
-        <text>Actions (THEN)</text>
-        <textArea 
-          name="actions" 
-          placeholder="e.g., remove_post, send_modmail('Your post was removed')"
-        />
-        
-        <hstack gap="small">
-          <button onPress={() => context.ui.showForm(createTestRuleForm(context, data))}>
-            Test Rule
-          </button>
-          <button appearance="primary" type="submit">
-            Save Rule
-          </button>
-        </hstack>
-      </vstack>
-    </form>
-  );
-}
-
 // Form: Analytics Dashboard
 async function createAnalyticsForm(context: Devvit.Context) {
   const stats = await engine.getSubredditStats(context);
@@ -280,127 +192,9 @@ async function createAnalyticsForm(context: Devvit.Context) {
         
         <text size="small" color="secondary">Time Saved: {stats.timeSavedMinutes} minutes</text>
         
-        <button onPress={() => context.ui.navigateTo('https://modrule.dev/analytics')}>
-          Detailed Analytics
-        </button>
-      </vstack>
-    </form>
-  );
-}
-
-// Form: Rule List with management
-async function createRuleListForm(context: Devvit.Context) {
-  const rules = await storage.getAllRules(context.reddit.getCurrentSubredditName());
-  
-  return (
-    <form>
-      <vstack gap="medium" padding="medium">
-        <text size="large" weight="bold">Manage Rules</text>
-        
-        {rules.length === 0 ? (
-          <vstack gap="small">
-            <text color="secondary">No rules yet. Create your first moderation rule!</text>
-            <button onPress={() => ui.showForm(createNewRuleForm(context))}>
-              + Create New Rule
-            </button>
-          </vstack>
-        ) : (
-          <vstack gap="small">
-            {rules.map(rule => (
-              <hstack key={rule.id} gap="small" alignment="center middle">
-                <vstack grow>
-                  <text weight="bold">{rule.name}</text>
-                  <text size="small" color="secondary">{rule.description}</text>
-                  <hstack gap="small">
-                    <text size="small" color={rule.enabled ? 'success' : 'neutral'}>
-                      {rule.enabled ? '🟢 Active' : '⚪ Inactive'}
-                    </text>
-                    <text size="small" color="secondary">
-                      {rule.executionCount} executions
-                    </text>
-                  </hstack>
-                </vstack>
-                
-                <hstack gap="small">
-                  <button 
-                    size="small" 
-                    appearance={rule.enabled ? 'secondary' : 'primary'}
-                    onPress={() => toggleRule(context, rule.id)}
-                  >
-                    {rule.enabled ? 'Disable' : 'Enable'}
-                  </button>
-                  <button 
-                    size="small" 
-                    onPress={() => ui.showForm(createEditRuleForm(context, rule.id))}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    size="small" 
-                    appearance="destructive" 
-                    onPress={() => ui.showForm(createDeleteConfirmForm(context, rule.id))}
-                  >
-                    Delete
-                  </button>
-                </hstack>
-              </hstack>
-            ))}
-          </vstack>
-        )}
-        
-        <button onPress={() => ui.showForm(createNewRuleForm(context))}>
-          + Create New Rule
-        </button>
-      </vstack>
-    </form>
-  );
-}
-
-// Form: Edit Rule
-function createEditRuleForm(context: Devvit.Context, ruleId: string) {
-  return (
-    <form onSubmit={async (data) => {
-      const subreddit = context.reddit.getCurrentSubredditName();
-      const rules = await storage.getAllRules(subreddit);
-      const rule = rules.find(r => r.id === ruleId);
-      
-      if (rule) {
-        rule.name = data.name || rule.name;
-        rule.description = data.description || rule.description;
-        rule.updatedAt = Date.now();
-        await storage.updateRule(subreddit, rule);
-        context.ui.showToast('Rule updated!');
-      }
-    }}>
-      <vstack gap="medium" padding="medium">
-        <text size="large" weight="bold">Edit Rule</text>
-        
-        <text>Name</text>
-        <textField name="name" placeholder="Rule name" />
-        
-        <text>Description</text>
-        <textArea name="description" placeholder="Rule description" />
-        
-        <button type="submit">Save Changes</button>
-      </vstack>
-    </form>
-  );
-}
-
-// Form: Delete Confirmation
-function createDeleteConfirmForm(context: Devvit.Context, ruleId: string) {
-  return (
-    <form>
-      <vstack gap="medium" padding="medium">
-        <text size="large" weight="bold" color="danger">Delete Rule?</text>
-        <text>This action cannot be undone. The rule will be permanently removed.</text>
-        
         <hstack gap="small">
-          <button onPress={() => deleteRule(context, ruleId)} appearance="destructive">
-            Yes, Delete
-          </button>
-          <button onPress={() => ui.showForm(createRuleListForm(context))}>
-            Cancel
+          <button appearance="secondary" onPress={() => context.ui.showForm(createRuleBuilderForm(context, storage))}>
+            ← Back to Rules
           </button>
         </hstack>
       </vstack>
@@ -410,13 +204,16 @@ function createDeleteConfirmForm(context: Devvit.Context, ruleId: string) {
 
 // Form: Template Selection
 function createTemplateForm(context: Devvit.Context, template: any) {
+  const { ui } = context;
+
   return (
     <form onSubmit={async (data) => {
       const subreddit = context.reddit.getCurrentSubredditName();
       const rule = templateToRule(template, context.userId || 'unknown');
       rule.name = data.name || rule.name;
       await storage.saveRule(subreddit, rule);
-      context.ui.showToast('Template rule created! Enable it when ready.');
+      ui.showToast('Template rule created! Enable it when ready.');
+      ui.showForm(await createRuleBuilderForm(context, storage));
     }}>
       <vstack gap="medium" padding="medium">
         <text size="large" weight="bold">Create from Template</text>
@@ -436,14 +233,21 @@ function createTemplateForm(context: Devvit.Context, template: any) {
           This will create the rule in test mode. Review and enable when ready.
         </text>
         
-        <button type="submit">Create Rule</button>
+        <hstack gap="small">
+          <button appearance="secondary" onPress={() => ui.showForm(createRuleBuilderForm(context, storage))}>
+            Cancel
+          </button>
+          <button appearance="primary" type="submit">Create Rule</button>
+        </hstack>
       </vstack>
     </form>
   );
 }
 
 // Form: Test Rule
-function createTestRuleForm(context: Devvit.Context, testData: any) {
+function createTestRuleForm(context: Devvit.Context, ruleData: any) {
+  const { ui } = context;
+
   return (
     <form>
       <vstack gap="medium" padding="medium">
@@ -458,8 +262,7 @@ function createTestRuleForm(context: Devvit.Context, testData: any) {
         <textField name="testKarma" placeholder="e.g., 5" />
         
         <button onPress={async () => {
-          // Simulate rule evaluation
-          context.ui.showToast('Test running... (simulation mode)');
+          ui.showToast('Test running... (simulation mode)');
         }}>
           Run Test
         </button>
@@ -467,22 +270,11 @@ function createTestRuleForm(context: Devvit.Context, testData: any) {
         <text size="small" color="secondary">
           Test mode evaluates conditions without executing actions.
         </text>
+        
+        <button appearance="secondary" onPress={() => ui.showForm(createRuleBuilderForm(context, storage))}>
+          ← Back
+        </button>
       </vstack>
     </form>
   );
 }
-
-// Helper: Toggle rule enabled state
-async function toggleRule(context: Devvit.Context, ruleId: string) {
-  const subreddit = context.reddit.getCurrentSubredditName();
-  const rules = await storage.getAllRules(subreddit);
-  const rule = rules.find(r => r.id === ruleId);
-  
-  if (rule) {
-    rule.enabled = !rule.enabled;
-    await storage.updateRule(subreddit, rule);
-    context.ui.showToast(rule.enabled ? 'Rule enabled' : 'Rule disabled');
-  }
-}
-
-import { RULE_TEMPLATES, templateToRule } from '../templates/RuleTemplates';

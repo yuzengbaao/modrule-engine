@@ -1,7 +1,8 @@
 /**
  * ModRule Engine - Test Suite
  * 
- * Tests for core engine components without requiring Devvit platform.
+ * Tests for core engine components and UI components without requiring Devvit platform.
+ * Run with: npx tsx src/test/engine.test.ts
  */
 
 import { RuleEngine } from '../engine/RuleEngine';
@@ -9,6 +10,25 @@ import { ConditionEvaluator } from '../engine/ConditionEvaluator';
 import { ActionExecutor } from '../engine/ActionExecutor';
 import { RuleStorage } from '../storage/RuleStorage';
 import { TriggerType, ConditionOperator, ActionType } from '../types';
+
+// UI component logic imports (non-JSX exports)
+import {
+  generateRuleDescription,
+  generateRuleSummary,
+  validateRule
+} from '../components/RulePreview';
+
+import {
+  extractConditionsFromForm,
+  createDefaultCondition,
+  parseConditionValue,
+  getFieldType
+} from '../components/ConditionBuilder';
+
+import {
+  extractActionsFromForm,
+  createDefaultAction
+} from '../components/ActionBuilder';
 
 // Mock Devvit context for testing
 function createMockContext(): any {
@@ -258,6 +278,196 @@ async function testTemplates() {
   }
 }
 
+// Test 5: Rule Preview Component
+async function testRulePreview() {
+  const rule = {
+    id: 'test_preview',
+    name: 'Spam Detection',
+    description: 'Detects spam posts',
+    enabled: true,
+    trigger: {
+      type: TriggerType.POST_CREATED,
+      config: {}
+    },
+    conditions: [
+      {
+        id: 'cond1',
+        field: 'post.title',
+        operator: ConditionOperator.CONTAINS,
+        value: 'spam',
+        negate: false
+      },
+      {
+        id: 'cond2',
+        field: 'user.karma',
+        operator: ConditionOperator.LESS_THAN,
+        value: 10,
+        negate: false
+      }
+    ],
+    actions: [
+      {
+        id: 'act1',
+        type: ActionType.REMOVE_POST,
+        config: { reason: 'Spam' }
+      }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    createdBy: 'test',
+    testMode: false,
+    executionCount: 0
+  };
+
+  // Test 5.1: Description generation
+  const description = generateRuleDescription(rule as any);
+  console.assert(description.includes('post is created'), 'Should mention trigger');
+  console.assert(description.includes('Post Title contains "spam"'), 'Should mention condition 1');
+  console.assert(description.includes('remove the post'), 'Should mention action');
+
+  // Test 5.2: Summary generation
+  const summary = generateRuleSummary(rule as any);
+  console.assert(summary.includes('📝 Post'), 'Should have trigger label');
+  console.assert(summary.includes('🗑️ Remove'), 'Should have action label');
+
+  // Test 5.3: Validation
+  const issues = validateRule(rule as any);
+  console.assert(issues.length === 0, 'Valid rule should have no issues');
+
+  // Test 5.4: Validation catches empty name
+  const badRule = { ...rule, name: '' };
+  const badIssues = validateRule(badRule as any);
+  console.assert(badIssues.some(i => i.includes('name')), 'Should flag missing name');
+
+  // Test 5.5: Validation catches dangerous actions
+  const dangerousRule = {
+    ...rule,
+    actions: [{ id: 'ban1', type: ActionType.BAN_USER, config: {} }],
+    testMode: false
+  };
+  const dangerIssues = validateRule(dangerousRule as any);
+  console.assert(dangerIssues.some(i => i.includes('ban')), 'Should warn about ban actions');
+
+  console.log('✅ RulePreview tests passed');
+}
+
+// Test 6: Condition Builder Component
+async function testConditionBuilder() {
+  // Test 6.1: Extract conditions from form data
+  const formData = {
+    'cond_field_0': 'post.title',
+    'cond_op_0': 'contains',
+    'cond_value_0': 'spam',
+    'cond_negate_0': 'false',
+    'cond_field_1': 'user.karma',
+    'cond_op_1': 'less_than',
+    'cond_value_1': '10',
+    'cond_negate_1': 'false'
+  };
+
+  const conditions = extractConditionsFromForm(formData);
+  console.assert(conditions.length === 2, 'Should extract 2 conditions');
+  console.assert(conditions[0].field === 'post.title', 'First field should be post.title');
+  console.assert(conditions[0].operator === 'contains', 'First operator should be contains');
+  console.assert(conditions[0].value === 'spam', 'First value should be spam');
+  console.assert(conditions[1].value === 10, 'Second value should be parsed as number');
+
+  // Test 6.2: Create default condition
+  const defaultCond = createDefaultCondition('user.karma');
+  console.assert(defaultCond.field === 'user.karma', 'Default condition should use provided field');
+  console.assert(defaultCond.negate === false, 'Default should not be negated');
+
+  // Test 6.3: Parse value by type
+  const numValue = parseConditionValue('user.karma', '50');
+  console.assert(numValue === 50, 'Should parse number field as number');
+
+  const boolValue = parseConditionValue('user.isMod', 'true');
+  console.assert(boolValue === true, 'Should parse boolean field as boolean');
+
+  const strValue = parseConditionValue('post.title', 'hello');
+  console.assert(strValue === 'hello', 'Should parse string field as string');
+
+  // Test 6.4: Field type detection
+  console.assert(getFieldType('user.karma') === 'number', 'Karma should be number type');
+  console.assert(getFieldType('post.title') === 'string', 'Title should be string type');
+  console.assert(getFieldType('user.isMod') === 'boolean', 'isMod should be boolean type');
+
+  console.log('✅ ConditionBuilder tests passed');
+}
+
+// Test 7: Action Builder Component
+async function testActionBuilder() {
+  // Test 7.1: Extract actions from form data
+  const formData = {
+    'action_type_0': 'remove_post',
+    'action_0_config_reason': 'Spam detected',
+    'action_0_config_spam': 'true',
+    'action_delay_0': '0',
+    'action_type_1': 'send_modmail',
+    'action_1_config_modmailSubject': 'Post removed',
+    'action_1_config_modmailBody': 'Your post was removed',
+    'action_delay_1': '5'
+  };
+
+  const actions = extractActionsFromForm(formData);
+  console.assert(actions.length === 2, 'Should extract 2 actions');
+  console.assert(actions[0].type === 'remove_post', 'First action should be remove_post');
+  console.assert(actions[0].config.reason === 'Spam detected', 'Should have reason config');
+  console.assert(actions[0].config.spam === true, 'Should parse spam as boolean');
+  console.assert(actions[1].type === 'send_modmail', 'Second action should be send_modmail');
+  console.assert(actions[1].delay === 5, 'Should parse delay as number');
+
+  // Test 7.2: Create default action
+  const defaultAction = createDefaultAction('ban_user' as ActionType);
+  console.assert(defaultAction.type === 'ban_user', 'Default action should use provided type');
+  console.assert(defaultAction.delay === 0, 'Default delay should be 0');
+
+  // Test 7.3: Empty form data
+  const emptyActions = extractActionsFromForm({});
+  console.assert(emptyActions.length === 0, 'Should return empty array for empty form');
+
+  console.log('✅ ActionBuilder tests passed');
+}
+
+// Test 8: Rule Storage operations
+async function testRuleStorage() {
+  const storage = new RuleStorage();
+  const subreddit = 'test_storage_sub';
+
+  // Test 8.1: Save and retrieve
+  const rule = {
+    id: 'storage_test',
+    name: 'Test Rule',
+    description: 'Testing storage',
+    enabled: true,
+    trigger: { type: TriggerType.POST_CREATED, config: {} },
+    conditions: [],
+    actions: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    createdBy: 'test',
+    testMode: false,
+    executionCount: 0
+  };
+
+  await storage.saveRule(subreddit, rule);
+  const rules = await storage.getAllRules(subreddit);
+  console.assert(rules.length === 1, 'Should have 1 rule');
+  console.assert(rules[0].name === 'Test Rule', 'Should retrieve correct rule');
+
+  // Test 8.2: Delete
+  await storage.deleteRule(subreddit, 'storage_test');
+  const afterDelete = await storage.getAllRules(subreddit);
+  console.assert(afterDelete.length === 0, 'Should have 0 rules after delete');
+
+  // Test 8.3: Stats default
+  const stats = await storage.getStats(subreddit);
+  console.assert(stats.subreddit === subreddit, 'Stats should have correct subreddit');
+  console.assert(stats.totalRules === 0, 'Default stats should show 0 rules');
+
+  console.log('✅ RuleStorage tests passed');
+}
+
 // Run all tests
 async function runTests() {
   console.log('🧪 Running ModRule Engine Tests...\n');
@@ -267,6 +477,10 @@ async function runTests() {
     await testRuleEngine();
     await testActionExecutor();
     await testTemplates();
+    await testRulePreview();
+    await testConditionBuilder();
+    await testActionBuilder();
+    await testRuleStorage();
 
     console.log('\n🎉 All tests passed!');
   } catch (error) {

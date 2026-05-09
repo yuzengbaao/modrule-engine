@@ -19,10 +19,12 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.40",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "scripts": {
     "build": "tsc",
+    "test": "tsx src/test/engine.test.ts",
     "dev": "devvit playtest",
     "upload": "devvit upload"
   }
